@@ -50,6 +50,7 @@ function AnalyzingPage() {
 
   const ready =
     photos.front && photos.left && photos.right && consent && email.includes("@");
+  const hasPhotos = Boolean(photos.front && photos.left && photos.right);
 
   async function runAnalysis() {
     if (!ready || sending) return;
@@ -102,6 +103,21 @@ function AnalyzingPage() {
     setSending(false);
   }
 
+  if (!hasPhotos) {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <p className="tm-eyebrow">analyzing</p>
+        <h1 className="tm-display mt-3 text-4xl">no photos yet.</h1>
+        <p className="mt-3 text-ink-soft">
+          the analysis needs your three scan photos first.
+        </p>
+        <button className="tm-btn-hot mt-6" onClick={() => navigate({ to: "/scan" })}>
+          take my photos
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-xl py-6">
       <p className="tm-eyebrow">analyzing</p>
@@ -110,7 +126,10 @@ function AnalyzingPage() {
       <div className="tm-card mt-6 p-6">
         <div className="flex items-center gap-4">
           <div className="tm-pulse h-12 w-12 shrink-0 rounded-full bg-hot" />
-          <p className="font-medium text-ink-soft">{STAGES[stage]}</p>
+          <div>
+            <p className="tm-eyebrow">stage {stage + 1} of {STAGES.length}</p>
+            <p className="mt-1 font-medium text-ink-soft">{STAGES[stage]}</p>
+          </div>
         </div>
         <div className="score-track mt-4">
           <div
@@ -164,10 +183,13 @@ function AnalyzingPage() {
       <div className="mt-8">
         <h2 className="tm-display text-2xl">where should we send your report</h2>
         <p className="mt-1 text-sm text-ink-mute">
-          your email unlocks the full report.
+          your email unlocks the full report. only used to send it. no spam,
+          ever.
         </p>
         <input
           type="email"
+          inputMode="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@email.com"

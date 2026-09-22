@@ -6,21 +6,24 @@ export const Route = createFileRoute("/scan")({
   component: ScanPage,
 });
 
-const ANGLES: { key: PhotoAngle; title: string; hint: string }[] = [
+const ANGLES: { key: PhotoAngle; title: string; hint: string; tip: string }[] = [
   {
     key: "front",
     title: "front",
     hint: "face the camera straight on. keep a neutral expression, hair away from your face.",
+    tip: "chin level, eyes on the lens.",
   },
   {
     key: "left",
     title: "left side",
     hint: "turn your head to show your left cheek and jawline to the camera.",
+    tip: "shoulders still, turn only your head.",
   },
   {
     key: "right",
     title: "right side",
     hint: "turn your head to show your right cheek and jawline to the camera.",
+    tip: "shoulders still, turn only your head.",
   },
 ];
 
@@ -96,7 +99,7 @@ function ScanPage() {
         />
         <span className="text-sm text-ink-soft">
           i consent to treatme analyzing my photos for a cosmetic skin report.
-          photos are used only for my report.
+          photos are used only for my report. never sold, never shared.
         </span>
       </label>
 
@@ -108,7 +111,8 @@ function ScanPage() {
             className={`tm-chip flex-1 ${i === step ? "!border-hot !bg-hot-soft" : ""}`}
             data-active={Boolean(photos[a.key])}
           >
-            {i + 1}. {a.title} {photos[a.key] ? "done" : ""}
+            {i + 1}. {a.title}
+            {photos[a.key] && <span className="ml-1">✓</span>}
           </button>
         ))}
       </div>
@@ -137,6 +141,7 @@ function ScanPage() {
             {step + 1} of 3. {angle.title}.
           </h3>
           <p className="mt-1 text-ink-soft">{angle.hint}</p>
+          <p className="mt-1 text-sm font-medium text-ink-mute">{angle.tip}</p>
           {error && <p className="mt-2 text-sm font-medium text-hot-deep">{error}</p>}
           <div className="mt-4 flex gap-3">
             <button className="tm-btn-hot flex-1" onClick={() => fileRef.current?.click()}>

@@ -8,7 +8,7 @@ import {
   type AnalysisResult,
   type ConcernKey,
 } from "@/lib/concerns";
-import { ScoreBar } from "@/components/ScoreBar";
+import { ScoreBar, BandBadge } from "@/components/ScoreBar";
 import { FaceMap } from "@/components/FaceMap";
 import { getSupabase } from "@/lib/supabase";
 
@@ -76,7 +76,8 @@ function ReportPage() {
   if (missing) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <h1 className="tm-display text-4xl">no report here.</h1>
+        <p className="tm-eyebrow">report</p>
+        <h1 className="tm-display mt-3 text-4xl">no report here.</h1>
         <p className="mt-3 text-ink-soft">
           this report is not available. run a fresh scan to get one.
         </p>
@@ -100,6 +101,10 @@ function ReportPage() {
   const scores = Object.fromEntries(
     Object.entries(result.concerns).map(([k, v]) => [k, v.score]),
   ) as Record<ConcernKey, number>;
+  const overall = Math.round(
+    Object.values(scores).reduce((a, b) => a + b, 0) /
+      Math.max(1, Object.values(scores).length),
+  );
 
   return (
     <div className="mx-auto max-w-2xl py-6">
@@ -112,6 +117,25 @@ function ReportPage() {
       )}
 
       <div className="tm-card mt-6 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="tm-eyebrow">overall score</p>
+            <p className="tm-display mt-2 text-6xl tabular-nums">{overall}</p>
+            <p className="mt-1 text-sm text-ink-mute">
+              average across 16 markers
+            </p>
+          </div>
+          <BandBadge score={overall} />
+        </div>
+        <div className="score-track mt-4">
+          <div
+            className="score-fill bg-hot"
+            style={{ width: `${overall}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="tm-card mt-4 p-6">
         <p className="tm-eyebrow">summary</p>
         <p className="mt-2 text-lg leading-relaxed">{result.summary}</p>
         {result.fitzpatrick && (
@@ -154,8 +178,8 @@ function ReportPage() {
         <h2 className="tm-display text-3xl">the full picture</h2>
         {CONCERN_GROUPS.map((g) => (
           <div key={g.key} className="tm-card mt-4 p-6">
-            <h3 className="tm-display text-xl">{g.label}</h3>
-            <div className="divide-y divide-line">
+            <p className="tm-eyebrow">{g.label}</p>
+            <div className="mt-2 divide-y divide-line">
               {g.concerns.map((c) => {
                 const key = c.key as ConcernKey;
                 const v = result.concerns[key];
@@ -174,8 +198,8 @@ function ReportPage() {
       </div>
 
       {result.medical_flag && (
-        <div className="tm-card mt-6 border-amber-300 bg-amber-50 p-5">
-          <p className="font-semibold">worth a doctor's look:</p>
+        <div className="tm-card mt-6 border-l-4 border-l-hot p-5">
+          <p className="font-bold text-hot-deep">worth a doctor's look.</p>
           <p className="mt-1 text-sm text-ink-soft">{result.medical_flag}</p>
         </div>
       )}

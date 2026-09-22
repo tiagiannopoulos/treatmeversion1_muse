@@ -54,7 +54,7 @@ function TreatmentsPage() {
       </p>
 
       <div className="tm-card mt-6 p-6">
-        <p className="font-semibold">your focus concerns</p>
+        <p className="tm-eyebrow">your focus concerns</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {CONCERN_KEYS.map((k) => (
             <button
@@ -70,11 +70,11 @@ function TreatmentsPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="text-sm font-semibold text-ink-mute">budget</span>
+            <span className="tm-eyebrow">budget</span>
             <select
               value={budget}
               onChange={(e) => setBudget(e.target.value as BudgetTier | "any")}
-              className="tm-input mt-1.5"
+              className="tm-input mt-2"
             >
               {(Object.keys(BUDGET_LABELS) as (BudgetTier | "any")[]).map((b) => (
                 <option key={b} value={b}>
@@ -84,11 +84,11 @@ function TreatmentsPage() {
             </select>
           </label>
           <label className="block">
-            <span className="text-sm font-semibold text-ink-mute">downtime</span>
+            <span className="tm-eyebrow">downtime</span>
             <select
               value={downtime}
               onChange={(e) => setDowntime(e.target.value as Downtime | "any")}
-              className="tm-input mt-1.5"
+              className="tm-input mt-2"
             >
               {(Object.keys(DOWNTIME_LABELS) as (Downtime | "any")[]).map((d) => (
                 <option key={d} value={d}>
@@ -113,6 +113,9 @@ function TreatmentsPage() {
       </div>
 
       <div className="mt-6 space-y-4">
+        <p className="tm-eyebrow">
+          {matches.length} {matches.length === 1 ? "treatment" : "treatments"} match your filters
+        </p>
         {matches.length === 0 && (
           <div className="tm-card p-8 text-center">
             <p className="tm-display text-2xl">nothing matches those filters.</p>

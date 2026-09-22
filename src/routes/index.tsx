@@ -57,7 +57,7 @@ export function HomePage() {
           {STEPS.map((s) => (
             <div
               key={s.n}
-              className="grid grid-cols-[2.5rem_1fr] gap-x-4 py-5 sm:grid-cols-[3rem_8rem_1fr] sm:items-baseline"
+              className="grid grid-cols-[2.5rem_1fr] gap-x-4 py-5 sm:grid-cols-[3rem_9rem_1fr] sm:items-baseline"
             >
               <p className="text-sm font-bold tabular-nums text-hot">{s.n}</p>
               <h3 className="tm-display text-2xl">{s.title}</h3>

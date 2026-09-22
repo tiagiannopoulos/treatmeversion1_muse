@@ -53,9 +53,12 @@ function SignInPage() {
 
       {sent ? (
         <div className="tm-card mt-6 p-6 text-center">
-          <p className="text-3xl">sent.</p>
+          <p className="tm-display text-3xl">sent.</p>
           <p className="mt-2 text-ink-soft">
             check {email} for your sign in link.
+          </p>
+          <p className="mt-1 text-sm text-ink-mute">
+            not there? check spam, then try again.
           </p>
           <button className="tm-btn-ghost mt-5" onClick={() => navigate({ to: "/" })}>
             back home
@@ -63,14 +66,19 @@ function SignInPage() {
         </div>
       ) : (
         <form onSubmit={sendLink} className="mt-6 space-y-4">
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@email.com"
-            className="tm-input"
-          />
+          <label className="block">
+            <span className="tm-eyebrow">email</span>
+            <input
+              type="email"
+              required
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@email.com"
+              className="tm-input mt-2"
+            />
+          </label>
           {error && <p className="text-sm font-medium text-hot-deep">{error}</p>}
           <button type="submit" disabled={loading || !configured} className="tm-btn-hot w-full">
             {loading ? "sending..." : "send me a sign in link"}

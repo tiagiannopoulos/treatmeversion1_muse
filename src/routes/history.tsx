@@ -2,9 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   CONCERN_LABELS,
-  bandFor,
   type ConcernKey,
 } from "@/lib/concerns";
+import { BandBadge } from "@/components/ScoreBar";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/history")({
@@ -149,7 +149,7 @@ function HistoryPage() {
               params={{ scanId: s.id }}
               className="tm-card block p-5 transition-shadow hover:shadow-md"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <p className="font-semibold">
                   {new Date(s.created_at).toLocaleDateString(undefined, {
                     month: "long",
@@ -157,9 +157,12 @@ function HistoryPage() {
                     year: "numeric",
                   })}
                 </p>
-                <span className="text-sm text-hot-deep">
-                  {bandFor(avgScore(s))} · {Math.round(avgScore(s))}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-lg font-bold tabular-nums">
+                    {Math.round(avgScore(s))}
+                  </span>
+                  <BandBadge score={avgScore(s)} />
+                </div>
               </div>
               <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{s.summary}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
