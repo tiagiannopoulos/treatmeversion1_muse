@@ -22,7 +22,8 @@ locked 2026-09-22. this file is the source of truth when chat history disagrees.
 7. auth: supabase. 5 free scans per day per user, enforced server side. premium flag = unlimited (no payments wired yet).
 
 ## analysis engine
-- POST /api/analyze accepts the 3 photos and calls claude vision (ANTHROPIC_API_KEY from env) with a structured prompt. response validated with zod.
+- POST /api/analyze accepts the 3 photos and calls gemini vision (GEMINI_API_KEY from env, server only) with a structured prompt via the generativelanguage REST API. responseMimeType application/json with a responseSchema matching the zod contract, then re-validated with zod. model defaults to gemini-3.6-flash (fast, cheap, strong vision); override with GEMINI_MODEL.
+- provider switch 2026-09-22: moved from anthropic claude vision to gemini at tia's request. she has gemini set up. model is gemini-3.6-flash (gemini-2.5-flash was the first pick but the api returned 404 "no longer available to new users" and pointed at 3.6-flash; verified live). flash-tier vision is on par with openai for skin detail and far cheaper per scan, which matters with a 5-free-scans/day tier. the api contract (16 concerns, bands, zod schema, 503/502 behavior) is unchanged.
 - if the key is missing: 503 "analysis unavailable". never silent placeholder scores presented as real.
 - if the model response fails validation: 502, ask the user to retry.
 - fitzpatrick classification is included when the model can do it honestly. medical_flag surfaces only when something looks doctor-worthy, never a diagnosis.

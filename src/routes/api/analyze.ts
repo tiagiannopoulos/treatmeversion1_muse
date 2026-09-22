@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   getUserFromRequest,
   isPremium,
@@ -13,6 +12,7 @@ import {
   CONCERN_KEYS,
   FREE_SCANS_PER_DAY,
   type AnalysisResult,
+  type ConcernKey,
 } from "@/lib/concerns";
 
 /**
@@ -20,9 +20,13 @@ import {
  * multipart form-data: front, left, right (image files), ageRange, concerns (json), email.
  * auth: Authorization: Bearer <supabase access token>.
  *
+ * analysis engine: google gemini vision (GEMINI_API_KEY from env, server only).
  * never returns placeholder scores. when the analysis engine is unavailable
  * it returns 503 "analysis unavailable".
  */
+
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SUPPORTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -45,51 +49,51 @@ rules:
 - "fitzpatrick": classify I to VI honestly from the photos when you can, otherwise omit it.
 - "medical_flag": null almost always. a short lowercase phrase only if you see something a doctor should look at rather than an aesthetics provider, like an irregular mole or a lesion. never name a diagnosis.
 - never use the word "poor". never estimate a skin age.
-- analyze the front photo primarily. use the left and right photos for profile and symmetry context.
+- analyze the front photo primarily. use the left and right photos for profile and symmetry context.`;
 
-return strict json only. no prose, no markdown, no code fences. exact shape:
-{
-  "concerns": {
-    "pores": { "score": 0-100, "explanation": "..." },
-    "breakouts": { "score": 0-100, "explanation": "..." },
-    "texture": { "score": 0-100, "explanation": "..." },
-    "oiliness": { "score": 0-100, "explanation": "..." },
-    "redness": { "score": 0-100, "explanation": "..." },
-    "pigmentation": { "score": 0-100, "explanation": "..." },
-    "uniformness": { "score": 0-100, "explanation": "..." },
-    "radiance": { "score": 0-100, "explanation": "..." },
-    "lines": { "score": 0-100, "explanation": "..." },
-    "firmness": { "score": 0-100, "explanation": "..." },
-    "volume_loss": { "score": 0-100, "explanation": "..." },
-    "hydration": { "score": 0-100, "explanation": "..." },
-    "dark_circles": { "score": 0-100, "explanation": "..." },
-    "under_eye_puffiness": { "score": 0-100, "explanation": "..." },
-    "tear_trough": { "score": 0-100, "explanation": "..." },
-    "eyelid_heaviness": { "score": 0-100, "explanation": "..." }
+const concernObjectSchema = {
+  type: "OBJECT",
+  properties: {
+    score: { type: "INTEGER", minimum: 0, maximum: 100 },
+    explanation: { type: "STRING" },
   },
-  "top_priorities": ["key", "key"],
-  "summary": "...",
-  "fitzpatrick": "III",
-  "medical_flag": null
-}`;
+  required: ["score", "explanation"],
+} as const;
 
-async function fileToImageBlock(file: File) {
+const RESPONSE_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    concerns: {
+      type: "OBJECT",
+      properties: Object.fromEntries(
+        CONCERN_KEYS.map((k) => [k, concernObjectSchema]),
+      ),
+      required: [...CONCERN_KEYS],
+    },
+    top_priorities: {
+      type: "ARRAY",
+      items: { type: "STRING", enum: [...CONCERN_KEYS] },
+      minItems: 1,
+      maxItems: 3,
+    },
+    summary: { type: "STRING" },
+    fitzpatrick: {
+      type: "STRING",
+      enum: ["I", "II", "III", "IV", "V", "VI"],
+    },
+    medical_flag: { type: "STRING", nullable: true },
+  },
+  required: ["concerns", "top_priorities", "summary"],
+};
+
+async function fileToInlineData(file: File) {
   const buf = Buffer.from(await file.arrayBuffer());
   return {
-    type: "image" as const,
-    source: {
-      type: "base64" as const,
-      media_type: file.type as "image/jpeg" | "image/png" | "image/webp",
+    inlineData: {
+      mimeType: file.type,
       data: buf.toString("base64"),
     },
   };
-}
-
-function stripCodeFences(text: string): string {
-  return text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/, "")
-    .trim();
 }
 
 export const Route = createFileRoute("/api/analyze")({
@@ -97,7 +101,7 @@ export const Route = createFileRoute("/api/analyze")({
     handlers: {
       POST: async ({ request }) => {
         // 1. engine availability. never fake a result.
-        const apiKey = process.env.ANTHROPIC_API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
           return Response.json(
             {
@@ -187,35 +191,71 @@ export const Route = createFileRoute("/api/analyze")({
         // 5. call the vision model.
         let result: AnalysisResult;
         try {
-          const anthropic = new Anthropic({ apiKey });
-          const imageBlocks = await Promise.all(
-            photos.map((p) => fileToImageBlock(p.file)),
+          const imageParts = await Promise.all(
+            photos.map((p) => fileToInlineData(p.file)),
           );
-          const message = await anthropic.messages.create({
-            model: process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5",
-            max_tokens: 3000,
-            system: SYSTEM_PROMPT,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  ...imageBlocks,
-                  {
-                    type: "text" as const,
-                    text: `user context. age range: ${meta.data.ageRange || "not given"}. self-reported concerns: ${meta.data.concerns.join(", ") || "none"}. analyze the photos now.`,
-                  },
-                ],
+          const res = await fetch(GEMINI_ENDPOINT, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    ...imageParts,
+                    {
+                      text: `user context. age range: ${meta.data.ageRange || "not given"}. self-reported concerns: ${meta.data.concerns.join(", ") || "none"}. analyze the photos now.`,
+                    },
+                  ],
+                },
+              ],
+              generationConfig: {
+                responseMimeType: "application/json",
+                responseSchema: RESPONSE_SCHEMA,
+                temperature: 0.2,
+                maxOutputTokens: 3000,
               },
-            ],
+            }),
           });
 
-          const textBlock = message.content.find((b) => b.type === "text");
-          if (!textBlock || textBlock.type !== "text") {
+          if (!res.ok) {
+            const errText = await res.text().catch(() => "");
+            console.error("gemini api error:", res.status, errText.slice(0, 500));
+            throw new Error(`gemini api returned ${res.status}`);
+          }
+
+          const body = (await res.json()) as {
+            candidates?: Array<{
+              finishReason?: string;
+              content?: { parts?: Array<{ text?: string }> };
+            }>;
+            promptFeedback?: { blockReason?: string };
+          };
+
+          if (body.promptFeedback?.blockReason) {
+            console.error("gemini blocked prompt:", body.promptFeedback.blockReason);
+            throw new Error("prompt blocked");
+          }
+
+          const candidate = body.candidates?.[0];
+          const text = candidate?.content?.parts
+            ?.map((p) => p.text ?? "")
+            .join("")
+            .trim();
+          if (!text) {
             throw new Error("empty model response");
           }
-          const parsed = JSON.parse(stripCodeFences(textBlock.text));
+          const parsed = JSON.parse(text);
           const validated = AnalysisResultSchema.safeParse(parsed);
           if (!validated.success) {
+            console.error(
+              "schema validation failed:",
+              validated.error.issues.slice(0, 5),
+            );
             throw new Error("schema validation failed");
           }
           result = validated.data;
@@ -235,10 +275,10 @@ export const Route = createFileRoute("/api/analyze")({
         if (dbConfigured) {
           const db = serviceClient();
           const scores = Object.fromEntries(
-            CONCERN_KEYS.map((k) => [k, result.concerns[k].score]),
+            CONCERN_KEYS.map((k) => [k, result.concerns[k as ConcernKey].score]),
           );
           const explanations = Object.fromEntries(
-            CONCERN_KEYS.map((k) => [k, result.concerns[k].explanation]),
+            CONCERN_KEYS.map((k) => [k, result.concerns[k as ConcernKey].explanation]),
           );
           const { data, error } = await db!
             .from("scans")

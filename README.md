@@ -6,7 +6,7 @@ understand your skin from one selfie. scan your skin, get a clear report, get a 
 
 - tanstack start (react 19) + typescript + tailwind css v4
 - supabase (auth + postgres) for accounts, scan history, daily limits
-- anthropic claude vision for the skin analysis engine
+- google gemini vision for the skin analysis engine
 - nitro build, vercel preset for deployment
 - structured for a later capacitor wrap for ios
 
@@ -26,10 +26,10 @@ npm run dev            # http://localhost:3000
 | `VITE_SUPABASE_ANON_KEY` | client | supabase anon key |
 | `SUPABASE_URL` | server | supabase project url |
 | `SUPABASE_SERVICE_ROLE_KEY` | server | service role key (secret) |
-| `ANTHROPIC_API_KEY` | server | enables POST /api/analyze (secret) |
-| `ANTHROPIC_MODEL` | server | vision model, default `claude-sonnet-4-5` |
+| `GEMINI_API_KEY` | server | enables POST /api/analyze (secret) |
+| `GEMINI_MODEL` | server | vision model, default `gemini-3.6-flash` |
 
-without `ANTHROPIC_API_KEY`, `POST /api/analyze` returns `503 analysis unavailable`. it never returns fake scores.
+without `GEMINI_API_KEY`, `POST /api/analyze` returns `503 analysis unavailable`. it never returns fake scores.
 
 ## database
 
@@ -51,7 +51,7 @@ verified 2026-09-22 with `npm run build:vercel` producing a valid `.vercel/outpu
 1. push this repo to github.
 2. import it in vercel.
 3. build command: `npm run build:vercel`. leave the output directory empty, vercel picks up `.vercel/output` automatically.
-4. add the env vars from `.env.example` in vercel project settings (supabase + anthropic).
+4. add the env vars from `.env.example` in vercel project settings (supabase + gemini).
 5. point `treatmeapp.com` at the vercel project.
 
 `npm run build` alone does a plain vite build (client + ssr bundles in `dist/`, useful for local checks). only the `build:vercel` script packages the server as vercel serverless functions via the nitro vite plugin.
