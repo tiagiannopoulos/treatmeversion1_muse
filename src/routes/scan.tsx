@@ -1,6 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useScan, type PhotoAngle } from "@/lib/scan-store";
+import {
+  checkAlignment,
+  detectLandmarks,
+  detectLandmarksFromDataUrl,
+  frameBrightness,
+  tesselation,
+  type Alignment,
+  type Landmark,
+} from "@/lib/face-landmarks";
 
 export const Route = createFileRoute("/scan")({
   component: ScanPage,
@@ -44,15 +53,232 @@ function downscale(dataUrl: string, maxDim = 1400): Promise<string> {
   });
 }
 
-function ScanPage() {
-  const navigate = useNavigate();
-  const { photos, setPhoto, consent, setConsent } = useScan();
-  const [step, setStep] = useState(0);
+/** white wireframe mesh over a still preview; landmarks in 0..1 image space. */
+function MeshSvg({ landmarks }: { landmarks: Landmark[] | null }) {
+  const conns = useMemo(tesselation, []);
+  if (!landmarks || landmarks.length < 100) return null;
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+      aria-hidden
+    >
+      <g stroke="#ffffff" strokeWidth={0.3} opacity={0.85} fill="none">
+        {conns.map((c, i) => {
+          const a = landmarks[c.start];
+          const b = landmarks[c.end];
+          return (
+            <line
+              key={i}
+              x1={a.x * 100}
+              y1={a.y * 100}
+              x2={b.x * 100}
+              y2={b.y * 100}
+            />
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+function AlignmentPill({ alignment }: { alignment: Alignment | null }) {
+  if (!alignment) return null;
+  return (
+    <div
+      className={`absolute left-1/2 top-4 z-10 -translate-x-1/2 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold lowercase backdrop-blur ${
+        alignment.ok ? "bg-hot text-white" : "bg-ink/70 text-white"
+      }`}
+    >
+      {alignment.hint}
+    </div>
+  );
+}
+
+function drawLiveMesh(
+  canvas: HTMLCanvasElement,
+  landmarks: Landmark[] | null,
+  mirror: boolean,
+) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const { width, height } = canvas;
+  ctx.clearRect(0, 0, width, height);
+  if (!landmarks || landmarks.length < 100) return;
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.lineWidth = Math.max(1, width / 420);
+  ctx.beginPath();
+  for (const c of tesselation()) {
+    const a = landmarks[c.start];
+    const b = landmarks[c.end];
+    ctx.moveTo((mirror ? 1 - a.x : a.x) * width, a.y * height);
+    ctx.lineTo((mirror ? 1 - b.x : b.x) * width, b.y * height);
+  }
+  ctx.stroke();
+}
+
+type CamMode = "starting" | "live" | "denied" | "preview";
+
+function AngleCapture({
+  angleKey,
+  title,
+  stepLabel,
+  hint,
+  tip,
+  photo,
+  storedLandmarks,
+  onPhoto,
+  onRetake,
+}: {
+  angleKey: PhotoAngle;
+  title: string;
+  stepLabel: string;
+  hint: string;
+  tip: string;
+  photo: string | null;
+  storedLandmarks: Landmark[] | null;
+  onPhoto: (
+    angle: PhotoAngle,
+    dataUrl: string,
+    landmarks: Landmark[] | null,
+  ) => void;
+  onRetake: (angle: PhotoAngle) => void;
+}) {
+  const [mode, setMode] = useState<CamMode>(photo ? "preview" : "starting");
+  const [alignment, setAlignment] = useState<Alignment | null>(null);
+  const [previewLandmarks, setPreviewLandmarks] = useState<Landmark[] | null>(
+    storedLandmarks,
+  );
   const [error, setError] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const angle = ANGLES[step];
-  const done = ANGLES.every((a) => photos[a.key]);
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }
+
+  function startCamera() {
+    setMode("starting");
+    setAlignment(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setMode("denied");
+      return;
+    }
+    let settled = false;
+    // headless / stuck permission prompts must not hang the ui: fall back
+    // to the file-input flow after a few seconds.
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      stopCamera();
+      setMode("denied");
+    }, 7000);
+    navigator.mediaDevices
+      .getUserMedia({
+        video: { facingMode: "user", width: { ideal: 1280 } },
+        audio: false,
+      })
+      .then((stream) => {
+        clearTimeout(timer);
+        if (settled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        settled = true;
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (video) {
+          video.srcObject = stream;
+          video.play().catch(() => {});
+        }
+        setMode("live");
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        if (settled) return;
+        settled = true;
+        setMode("denied");
+      });
+  }
+
+  // start the camera when there is no photo yet.
+  useEffect(() => {
+    if (photo) {
+      setMode("preview");
+      return;
+    }
+    startCamera();
+    return () => stopCamera();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // live face-mesh + alignment loop.
+  useEffect(() => {
+    if (mode !== "live") return;
+    const id = setInterval(async () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0)
+        return;
+      const w = video.clientWidth;
+      const h = video.clientHeight;
+      if (w > 0 && (canvas.width !== Math.round(w) || canvas.height !== Math.round(h))) {
+        canvas.width = Math.round(w);
+        canvas.height = Math.round(h);
+      }
+      try {
+        const pts = await detectLandmarks(video);
+        const bright = frameBrightness(video);
+        setAlignment(checkAlignment(pts, bright));
+        drawLiveMesh(canvas, pts, true);
+      } catch {
+        /* keep the last frame on transient errors */
+      }
+    }, 320);
+    return () => clearInterval(id);
+  }, [mode]);
+
+  // landmarks for a still preview (non-front angles re-detect locally).
+  useEffect(() => {
+    if (!photo) return;
+    if (storedLandmarks) {
+      setPreviewLandmarks(storedLandmarks);
+      return;
+    }
+    let cancelled = false;
+    detectLandmarksFromDataUrl(photo).then((pts) => {
+      if (!cancelled) setPreviewLandmarks(pts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [photo, storedLandmarks]);
+
+  async function captureStill() {
+    const video = videoRef.current;
+    if (!video || video.videoWidth === 0 || capturing) return;
+    setCapturing(true);
+    try {
+      const c = document.createElement("canvas");
+      c.width = video.videoWidth;
+      c.height = video.videoHeight;
+      c.getContext("2d")?.drawImage(video, 0, 0);
+      const small = await downscale(c.toDataURL("image/jpeg", 0.9));
+      stopCamera();
+      // detect on the still so the preview gets its mesh; front-angle
+      // landmarks are saved to the scan store by the parent.
+      const pts = await detectLandmarksFromDataUrl(small);
+      setPreviewLandmarks(pts);
+      onPhoto(angleKey, small, pts);
+    } finally {
+      setCapturing(false);
+    }
+  }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -70,10 +296,151 @@ function ScanPage() {
     const reader = new FileReader();
     reader.onload = async () => {
       const small = await downscale(reader.result as string);
-      setPhoto(angle.key, small);
-      if (step < ANGLES.length - 1) setStep(step + 1);
+      const pts = await detectLandmarksFromDataUrl(small);
+      setPreviewLandmarks(pts);
+      onPhoto(angleKey, small, pts);
     };
     reader.readAsDataURL(file);
+  }
+
+  function retake() {
+    onRetake(angleKey);
+    setPreviewLandmarks(null);
+    startCamera();
+  }
+
+  return (
+    <div className="tm-card overflow-hidden">
+      <div className="relative bg-ink">
+        {mode === "preview" && photo ? (
+          <div className="flex justify-center">
+            <div className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photo}
+                alt={`${title} preview`}
+                className="block max-h-96 object-contain"
+              />
+              <MeshSvg landmarks={previewLandmarks} />
+              <AlignmentPill
+                alignment={previewLandmarks ? { ok: true, hint: "ok" } : null}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="relative">
+            {mode !== "denied" && (
+              <>
+                <video
+                  ref={videoRef}
+                  playsInline
+                  muted
+                  className="mx-auto block max-h-96 w-full -scale-x-100 object-cover"
+                />
+                <canvas
+                  ref={canvasRef}
+                  className="pointer-events-none absolute inset-0 mx-auto block h-full w-full"
+                />
+              </>
+            )}
+            {mode === "starting" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-ink">
+                <div className="tm-pulse h-12 w-12 rounded-full bg-cream/30" />
+              </div>
+            )}
+            {mode === "denied" && (
+              /* no camera: existing file-input flow with the oval guide */
+              <div className="flex aspect-[3/4] max-h-96 w-full items-center justify-center">
+                <div className="flex h-64 w-48 items-center justify-center rounded-[50%] border-2 border-dashed border-cream/40">
+                  <p className="px-6 text-center text-sm text-cream/60">
+                    line your face up here
+                  </p>
+                </div>
+              </div>
+            )}
+            {mode === "live" && <AlignmentPill alignment={alignment} />}
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="user"
+          className="hidden"
+          onChange={onFile}
+        />
+      </div>
+
+      <div className="p-5">
+        <h3 className="tm-display text-2xl">
+          {stepLabel}. {title}.
+        </h3>
+        <p className="mt-1 text-ink-soft">{hint}</p>
+        <p className="mt-1 text-sm font-medium text-ink-mute">{tip}</p>
+        {error && (
+          <p className="mt-2 text-sm font-medium text-hot-deep">{error}</p>
+        )}
+        <div className="mt-4 flex gap-3">
+          {mode === "preview" ? (
+            <button className="tm-btn-ghost flex-1" onClick={retake}>
+              retake photo
+            </button>
+          ) : mode === "live" ? (
+            <>
+              <button
+                className="tm-btn-hot flex-1"
+                onClick={captureStill}
+                disabled={capturing}
+              >
+                {capturing ? "saving..." : "capture photo"}
+              </button>
+              <button className="tm-btn-ghost" onClick={() => fileRef.current?.click()}>
+                upload
+              </button>
+            </>
+          ) : mode === "denied" ? (
+            <button
+              className="tm-btn-hot flex-1"
+              onClick={() => fileRef.current?.click()}
+            >
+              take photo
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScanPage() {
+  const navigate = useNavigate();
+  const {
+    photos,
+    frontLandmarks,
+    setPhoto,
+    setFrontLandmarks,
+    consent,
+    setConsent,
+  } = useScan();
+  const [step, setStep] = useState(0);
+
+  const angle = ANGLES[step];
+  const done = ANGLES.every((a) => photos[a.key]);
+
+  async function handlePhoto(
+    angleKey: PhotoAngle,
+    dataUrl: string,
+    landmarks: Landmark[] | null,
+  ) {
+    setPhoto(angleKey, dataUrl);
+    if (angleKey === "front") setFrontLandmarks(landmarks);
+    const idx = ANGLES.findIndex((a) => a.key === angleKey);
+    if (idx < ANGLES.length - 1) setStep(idx + 1);
+  }
+
+  function handleRetake(angleKey: PhotoAngle) {
+    setPhoto(angleKey, null);
+    if (angleKey === "front") setFrontLandmarks(null);
   }
 
   return (
@@ -117,46 +484,19 @@ function ScanPage() {
         ))}
       </div>
 
-      <div className="tm-card mt-4 overflow-hidden">
-        <div className="relative bg-ink">
-          {photos[angle.key] ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photos[angle.key]!}
-              alt={`${angle.title} preview`}
-              className="mx-auto block max-h-96 object-contain"
-            />
-          ) : (
-            <div className="flex aspect-[3/4] max-h-96 w-full items-center justify-center">
-              <div className="flex h-64 w-48 items-center justify-center rounded-[50%] border-2 border-dashed border-cream/40">
-                <p className="px-6 text-center text-sm text-cream/60">
-                  line your face up here
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="p-5">
-          <h3 className="tm-display text-2xl">
-            {step + 1} of 3. {angle.title}.
-          </h3>
-          <p className="mt-1 text-ink-soft">{angle.hint}</p>
-          <p className="mt-1 text-sm font-medium text-ink-mute">{angle.tip}</p>
-          {error && <p className="mt-2 text-sm font-medium text-hot-deep">{error}</p>}
-          <div className="mt-4 flex gap-3">
-            <button className="tm-btn-hot flex-1" onClick={() => fileRef.current?.click()}>
-              {photos[angle.key] ? "retake photo" : "take photo"}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="user"
-              className="hidden"
-              onChange={onFile}
-            />
-          </div>
-        </div>
+      <div className="mt-4">
+        <AngleCapture
+          key={angle.key}
+          angleKey={angle.key}
+          title={angle.title}
+          stepLabel={`${step + 1} of 3`}
+          hint={angle.hint}
+          tip={angle.tip}
+          photo={photos[angle.key]}
+          storedLandmarks={angle.key === "front" ? frontLandmarks : null}
+          onPhoto={handlePhoto}
+          onRetake={handleRetake}
+        />
       </div>
 
       <button

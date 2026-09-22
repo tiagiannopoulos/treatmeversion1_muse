@@ -7,11 +7,14 @@ import {
   type ReactNode,
 } from "react";
 import type { AnalysisResult, ConcernKey } from "./concerns";
+import type { Landmark } from "./face-landmarks";
 
 export type PhotoAngle = "front" | "left" | "right";
 
 interface ScanState {
   photos: Record<PhotoAngle, string | null>;
+  /** normalized (0..1) facelandmarker points for the front photo, or null. */
+  frontLandmarks: Landmark[] | null;
   ageRange: string | null;
   concerns: ConcernKey[];
   email: string;
@@ -19,6 +22,7 @@ interface ScanState {
   result: AnalysisResult | null;
   scanId: string | null;
   setPhoto: (angle: PhotoAngle, dataUrl: string | null) => void;
+  setFrontLandmarks: (pts: Landmark[] | null) => void;
   setAgeRange: (v: string | null) => void;
   toggleConcern: (k: ConcernKey) => void;
   setEmail: (v: string) => void;
@@ -33,6 +37,7 @@ const EMPTY = { front: null, left: null, right: null };
 
 export function ScanProvider({ children }: { children: ReactNode }) {
   const [photos, setPhotos] = useState<Record<PhotoAngle, string | null>>({ ...EMPTY });
+  const [frontLandmarks, setFrontLandmarksState] = useState<Landmark[] | null>(null);
   const [ageRange, setAgeRange] = useState<string | null>(null);
   const [concerns, setConcerns] = useState<ConcernKey[]>([]);
   const [email, setEmail] = useState("");
@@ -41,8 +46,16 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const [scanId, setScanId] = useState<string | null>(null);
 
   const setPhoto = useCallback(
-    (angle: PhotoAngle, dataUrl: string | null) =>
-      setPhotos((p) => ({ ...p, [angle]: dataUrl })),
+    (angle: PhotoAngle, dataUrl: string | null) => {
+      setPhotos((p) => ({ ...p, [angle]: dataUrl }));
+      // landmarks belong to the specific front photo — clear on change.
+      if (angle === "front") setFrontLandmarksState(null);
+    },
+    [],
+  );
+
+  const setFrontLandmarks = useCallback(
+    (pts: Landmark[] | null) => setFrontLandmarksState(pts),
     [],
   );
 
@@ -59,6 +72,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
 
   const reset = useCallback(() => {
     setPhotos({ ...EMPTY });
+    setFrontLandmarksState(null);
     setAgeRange(null);
     setConcerns([]);
     setEmail("");
@@ -70,6 +84,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       photos,
+      frontLandmarks,
       ageRange,
       concerns,
       email,
@@ -77,6 +92,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       result,
       scanId,
       setPhoto,
+      setFrontLandmarks,
       setAgeRange,
       toggleConcern,
       setEmail,
@@ -84,7 +100,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
       setResult,
       reset,
     }),
-    [photos, ageRange, concerns, email, consent, result, scanId, setPhoto, setAgeRange, toggleConcern, setEmail, setConsent, setResult, reset],
+    [photos, frontLandmarks, ageRange, concerns, email, consent, result, scanId, setPhoto, setFrontLandmarks, setAgeRange, toggleConcern, setEmail, setConsent, setResult, reset],
   );
 
   return <ScanContext.Provider value={value}>{children}</ScanContext.Provider>;

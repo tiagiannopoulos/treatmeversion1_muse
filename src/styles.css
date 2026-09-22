@@ -186,3 +186,64 @@ body {
 .tm-rise {
   animation: tm-rise 0.5s ease both;
 }
+
+/* analyzing screen: scanning grid + pink sweep over the front photo */
+.tm-scan-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 16px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.22) 0 1px,
+      transparent 1px 16px
+    );
+}
+
+@keyframes tm-scan-sweep {
+  0% { top: -24%; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { top: 112%; opacity: 0; }
+}
+.tm-scan-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -24%;
+  height: 24%;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 31, 135, 0.16) 55%,
+    rgba(255, 255, 255, 0.65) 98%,
+    rgba(255, 255, 255, 0.85)
+  );
+  animation: tm-scan-sweep 2.8s ease-in-out infinite;
+}
+
+/* horizontally scrollable chip row (face map concern filter) */
+.tm-chip-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.tm-chip-row::-webkit-scrollbar {
+  display: none;
+}
+.tm-chip-row .tm-chip {
+  flex-shrink: 0;
+}
+.tm-chip-row .tm-chip[data-active="true"] {
+  background: var(--color-hot);
+  border-color: var(--color-hot);
+  color: #fff;
+}

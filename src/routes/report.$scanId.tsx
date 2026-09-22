@@ -11,6 +11,10 @@ import {
 import { ScoreBar, BandBadge } from "@/components/ScoreBar";
 import { FaceMap } from "@/components/FaceMap";
 import { getSupabase } from "@/lib/supabase";
+import {
+  detectLandmarksFromDataUrl,
+  type Landmark,
+} from "@/lib/face-landmarks";
 
 export const Route = createFileRoute("/report/$scanId")({
   component: ReportPage,
@@ -25,9 +29,10 @@ interface LoadedReport {
 function ReportPage() {
   const { scanId } = Route.useParams();
   const navigate = useNavigate();
-  const { result: liveResult, photos } = useScan();
+  const { result: liveResult, photos, frontLandmarks } = useScan();
   const [loaded, setLoaded] = useState<LoadedReport | null>(null);
   const [missing, setMissing] = useState(false);
+  const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +68,7 @@ function ReportPage() {
           summary: data.summary as string,
           fitzpatrick: data.fitzpatrick ?? undefined,
         },
-        frontPhoto: null,
+        frontPhoto: (data.front_photo as string | null) ?? null,
         createdAt: data.created_at as string,
       });
     }
@@ -72,6 +77,24 @@ function ReportPage() {
       cancelled = true;
     };
   }, [scanId, liveResult, photos.front]);
+
+  // landmark pipeline: live store landmarks for the fresh scan, otherwise
+  // detect on report mount; final fallback is the fractional zones.
+  useEffect(() => {
+    if (!loaded?.frontPhoto) return;
+    if (scanId === "latest") {
+      setLandmarks(frontLandmarks);
+      return;
+    }
+    let cancelled = false;
+    setLandmarks(null);
+    detectLandmarksFromDataUrl(loaded.frontPhoto).then((pts) => {
+      if (!cancelled) setLandmarks(pts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded?.frontPhoto, scanId, frontLandmarks]);
 
   if (missing) {
     return (
@@ -147,7 +170,11 @@ function ReportPage() {
 
       {loaded.frontPhoto && (
         <div className="mt-6">
-          <FaceMap photo={loaded.frontPhoto} scores={scores} />
+          <FaceMap
+            photo={loaded.frontPhoto}
+            scores={scores}
+            landmarks={landmarks}
+          />
         </div>
       )}
 

@@ -25,6 +25,45 @@ function dataUrlToFile(dataUrl: string, name: string): File {
   return new File([bytes], name, { type: mime });
 }
 
+function StageRow({
+  done,
+  active,
+  label,
+  progress,
+  sub,
+}: {
+  done: boolean;
+  active: boolean;
+  label: string;
+  progress: number; // 0..100
+  sub: string | null;
+}) {
+  return (
+    <div className="flex items-start gap-4 py-4">
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${
+          done ? "bg-hot text-white" : "bg-mist text-ink-mute"
+        } ${!done && active ? "tm-pulse" : ""}`}
+        aria-hidden
+      >
+        {done ? "✓" : active ? "…" : "·"}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className={`font-semibold ${done ? "text-ink" : "text-ink-soft"}`}>
+          {label}
+        </p>
+        {sub && <p className="mt-0.5 text-sm text-ink-mute">{sub}</p>}
+        <div className="score-track mt-2.5">
+          <div
+            className={`score-fill ${done ? "bg-hot" : "bg-hot/60"}`}
+            style={{ width: `${Math.round(progress)}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AnalyzingPage() {
   const navigate = useNavigate();
   const {
@@ -40,13 +79,36 @@ function AnalyzingPage() {
   } = useScan();
 
   const [stage, setStage] = useState(0);
+  const [reportBuilt, setReportBuilt] = useState(false);
+  const [reportDone, setReportDone] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setInterval(() => setStage((s) => Math.min(s + 1, STAGES.length - 1)), 2600);
+    const t = setInterval(
+      () => setStage((s) => Math.min(s + 1, STAGES.length - 1)),
+      2600,
+    );
     return () => clearInterval(t);
   }, []);
+
+  // row 2 ("building a scan report…") starts once the micro-stages finish.
+  useEffect(() => {
+    if (stage === STAGES.length - 1 && !reportBuilt) {
+      const t = setTimeout(() => setReportBuilt(true), 2600);
+      return () => clearTimeout(t);
+    }
+  }, [stage, reportBuilt]);
+
+  useEffect(() => {
+    if (reportBuilt && !reportDone) {
+      const t = setTimeout(() => setReportDone(true), 2400);
+      return () => clearTimeout(t);
+    }
+  }, [reportBuilt, reportDone]);
+
+  const analyzeDone = stage === STAGES.length - 1 && reportBuilt;
+  const analyzeProgress = ((stage + 1) / STAGES.length) * 100;
 
   const ready =
     photos.front && photos.left && photos.right && consent && email.includes("@");
@@ -123,24 +185,43 @@ function AnalyzingPage() {
       <p className="tm-eyebrow">analyzing</p>
       <h1 className="tm-display mt-3 text-4xl">reading your skin.</h1>
 
-      <div className="tm-card mt-6 p-6">
-        <div className="flex items-center gap-4">
-          <div className="tm-pulse h-12 w-12 shrink-0 rounded-full bg-hot" />
-          <div>
-            <p className="tm-eyebrow">stage {stage + 1} of {STAGES.length}</p>
-            <p className="mt-1 font-medium text-ink-soft">{STAGES[stage]}</p>
-          </div>
+      <div className="tm-card mt-6 overflow-hidden">
+        <div className="relative bg-ink">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photos.front!}
+            alt="your front scan photo"
+            className="block aspect-[3/4] w-full object-cover"
+          />
+          <div className="tm-scan-grid" aria-hidden />
+          <div className="tm-scan-sweep" aria-hidden />
         </div>
-        <div className="score-track mt-4">
-          <div
-            className="score-fill bg-hot"
-            style={{ width: `${((stage + 1) / STAGES.length) * 100}%` }}
+        <div className="px-6 py-2">
+          <StageRow
+            done={analyzeDone}
+            active={!analyzeDone}
+            label="analysing scan results…"
+            progress={analyzeDone ? 100 : analyzeProgress}
+            sub={
+              analyzeDone
+                ? null
+                : `${STAGES[stage]} · stage ${stage + 1} of ${STAGES.length}`
+            }
+          />
+          <div className="border-t border-line" />
+          <StageRow
+            done={reportDone}
+            active={reportBuilt && !reportDone}
+            label="building a scan report…"
+            progress={reportDone ? 100 : reportBuilt ? 100 : 0}
+            sub={null}
           />
         </div>
-        <p className="mt-3 text-sm text-ink-mute">
-          while you wait, tell us a little more. it sharpens your report.
-        </p>
       </div>
+
+      <p className="mt-4 text-sm text-ink-mute">
+        while you wait, tell us a little more. it sharpens your report.
+      </p>
 
       <div className="mt-8">
         <h2 className="tm-display text-2xl">your age range</h2>
