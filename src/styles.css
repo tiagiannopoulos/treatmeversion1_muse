@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0b0b0c;
+  --color-ink-soft: #3a3a3d;
+  --color-ink-mute: #8a8a8e;
+  --color-cream: #ffffff;
+  --color-mist: #f6f6f7;
+  --color-line: #e9e9eb;
+  --color-hot: #ff2e88;
+  --color-hot-deep: #d61e6e;
+  --color-hot-soft: #ffe9f2;
+  --font-sans: "helvetica neue", helvetica, arial, sans-serif;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  text-transform: none;
+}
+
+/* everything treatme says is lowercase */
+.tm-lower,
+.tm-lower input,
+.tm-lower textarea,
+.tm-lower select,
+.tm-lower button {
+  text-transform: lowercase;
+}
+
+.tm-eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-mute);
+  font-weight: 600;
+}
+
+.tm-display {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.tm-card {
+  background: var(--color-cream);
+  border: 1px solid var(--color-line);
+  border-radius: 1.25rem;
+}
+
+.tm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--color-ink);
+  color: var(--color-cream);
+  border-radius: 999px;
+  height: 3.25rem;
+  padding: 0 1.75rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.tm-btn-primary:hover {
+  background: var(--color-hot-deep);
+}
+.tm-btn-primary:active {
+  transform: scale(0.98);
+}
+.tm-btn-primary:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.tm-btn-hot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--color-hot);
+  color: #fff;
+  border-radius: 999px;
+  height: 3.25rem;
+  padding: 0 1.75rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+.tm-btn-hot:hover {
+  background: var(--color-hot-deep);
+}
+.tm-btn-hot:active {
+  transform: scale(0.98);
+}
+
+.tm-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  height: 3rem;
+  padding: 0 1.5rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  background: var(--color-cream);
+}
+.tm-btn-ghost:active {
+  transform: scale(0.98);
+}
+
+.tm-input {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  height: 3.25rem;
+  padding: 0 1.25rem;
+  background: var(--color-cream);
+  text-transform: lowercase;
+}
+.tm-input:focus {
+  outline: 2px solid var(--color-hot);
+  outline-offset: -1px;
+  border-color: var(--color-hot);
+}
+
+.tm-chip {
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-transform: lowercase;
+  background: var(--color-cream);
+  transition: all 0.12s ease;
+}
+.tm-chip[data-active="true"] {
+  background: var(--color-ink);
+  color: var(--color-cream);
+  border-color: var(--color-ink);
+}
+
+.score-track {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-mist);
+  overflow: hidden;
+}
+.score-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes tm-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.tm-pulse {
+  animation: tm-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes tm-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tm-rise {
+  animation: tm-rise 0.5s ease both;
+}

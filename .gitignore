@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# env (never commit real keys)
+.env
+.env.local
+.env.*.local
+
+# build output
+.output/
+dist/
+.vercel/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# generated
+src/routeTree.gen.ts
