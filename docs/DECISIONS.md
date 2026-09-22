@@ -3,12 +3,12 @@
 locked 2026-09-22. this file is the source of truth when chat history disagrees.
 
 ## what it is
-- treatme is "yuka for your face": scan your face, get an understandable skin report, get a treatment plan. consumer first.
+- treatme: scan your face, get an understandable skin report, get a treatment plan. consumer first. (2026-09-22: the "yuka for your face" line was removed from all in-app copy.)
 - explicitly cosmetic and educational. never a medical diagnosis. the report says "an estimate, not a diagnosis."
 - the consultation is the product. treatme never sells treatments, so the plan is built around the user's budget and goals first. clinics cannot pay to change matches. that trust is the moat.
 
 ## v1 scope
-1. home/landing: positions "yuka for your face", one scan cta.
+1. home/landing: clinical-minimal positioning, one scan cta.
 2. scan: guided selfie capture, front/left/right, face positioning guidance, lighting check, consent checkbox.
 3. analyzing: progress state. age range + concerns collected via tap cards during the wait. email captured as the condition for report delivery.
 4. skin report: 0-100 scores per concern, higher = better. bands: great (90-100), good (80-89), average (50-79), "focus here" (below 50). the word "poor" is never used. no skin age metric. 16 concerns in 4 groups:

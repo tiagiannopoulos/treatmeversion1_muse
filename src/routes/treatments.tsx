@@ -104,7 +104,7 @@ function TreatmentsPage() {
             type="checkbox"
             checked={noNeedles}
             onChange={(e) => setNoNeedles(e.target.checked)}
-            className="h-5 w-5 accent-[#ff2e88]"
+            className="h-5 w-5 accent-[#ff1f87]"
           />
           <span className="font-medium">
             no needles. <span className="text-ink-mute">hide every injectable, no exceptions.</span>
@@ -148,7 +148,7 @@ function TreatmentsPage() {
               href={t.booking_url}
               target="_blank"
               rel="noreferrer"
-              className="tm-btn-primary mt-5 w-full sm:w-auto"
+              className="tm-btn-hot mt-5 w-full sm:w-auto"
             >
               book this treatment
             </a>

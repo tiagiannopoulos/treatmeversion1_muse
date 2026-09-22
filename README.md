@@ -1,6 +1,6 @@
 # treatme.
 
-yuka for your face. scan your skin, get a clear report, get a treatment plan built around you.
+understand your skin from one selfie. scan your skin, get a clear report, get a treatment plan built around you.
 
 ## stack
 

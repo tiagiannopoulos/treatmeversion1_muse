@@ -56,7 +56,7 @@ export function FaceMap({
               cy={z.cy * 100}
               rx={z.rx * 100}
               ry={z.ry * 100}
-              fill="#ff2e88"
+              fill="#ff1f87"
               opacity={opacity}
             />
           );

@@ -31,7 +31,7 @@ export function HomePage() {
   return (
     <div>
       <section className="py-10 sm:py-16">
-        <p className="tm-eyebrow">yuka for your face</p>
+        <p className="tm-eyebrow">skin analysis</p>
         <h1 className="tm-display mt-4 max-w-2xl text-5xl sm:text-7xl">
           understand your skin from one selfie.
         </h1>
@@ -52,33 +52,38 @@ export function HomePage() {
         </p>
       </section>
 
-      <section className="grid gap-4 py-8 sm:grid-cols-2 lg:grid-cols-4">
-        {STEPS.map((s) => (
-          <div key={s.n} className="tm-card tm-rise p-6">
-            <p className="text-sm font-bold text-hot">{s.n}</p>
-            <h3 className="tm-display mt-2 text-2xl">{s.title}</h3>
-            <p className="mt-2 text-ink-soft">{s.text}</p>
-          </div>
-        ))}
+      <section className="py-8">
+        <div className="divide-y divide-line border-y border-line">
+          {STEPS.map((s) => (
+            <div
+              key={s.n}
+              className="grid grid-cols-[2.5rem_1fr] gap-x-4 py-5 sm:grid-cols-[3rem_8rem_1fr] sm:items-baseline"
+            >
+              <p className="text-sm font-bold tabular-nums text-hot">{s.n}</p>
+              <h3 className="tm-display text-2xl">{s.title}</h3>
+              <p className="col-span-2 text-ink-soft sm:col-span-1">{s.text}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section className="tm-card my-8 overflow-hidden">
-        <div className="grid sm:grid-cols-2">
-          <div className="bg-ink p-8 text-cream sm:p-12">
-            <p className="tm-eyebrow !text-cream/60">why treatme</p>
+      <section className="my-8 border-y border-line py-10">
+        <div className="grid gap-10 sm:grid-cols-2">
+          <div>
+            <p className="tm-eyebrow">why treatme</p>
             <h2 className="tm-display mt-3 text-3xl sm:text-4xl">
               every consultation ends with someone selling you something. this
               one does not.
             </h2>
-            <p className="mt-4 text-cream/70">
+            <p className="mt-4 text-ink-soft">
               treatme never sells treatments, so the plan it builds is built
               around your budget and your goals first. clinics cannot pay to
               change your matches.
             </p>
           </div>
-          <div className="bg-hot-soft p-8 sm:p-12">
+          <div>
             <p className="tm-eyebrow">what you get</p>
-            <ul className="mt-3 space-y-3 text-ink">
+            <ul className="mt-3 divide-y divide-line">
               {[
                 "16-point skin report in plain english",
                 "face map showing exactly where each concern lives",
@@ -86,7 +91,7 @@ export function HomePage() {
                 "treatments matched to budget, downtime and needle comfort",
                 "rescan tracking so you can see what is actually working",
               ].map((t) => (
-                <li key={t} className="flex gap-3">
+                <li key={t} className="flex gap-3 py-3">
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-hot" />
                   <span>{t}</span>
                 </li>

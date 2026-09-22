@@ -111,11 +111,11 @@ function ReportPage() {
         </p>
       )}
 
-      <div className="tm-card mt-6 border-ink bg-ink p-6 text-cream">
-        <p className="tm-eyebrow !text-cream/60">summary</p>
+      <div className="tm-card mt-6 p-6">
+        <p className="tm-eyebrow">summary</p>
         <p className="mt-2 text-lg leading-relaxed">{result.summary}</p>
         {result.fitzpatrick && (
-          <p className="mt-3 text-sm text-cream/60">
+          <p className="mt-3 text-sm text-ink-mute">
             fitzpatrick type {result.fitzpatrick}
           </p>
         )}
@@ -133,7 +133,7 @@ function ReportPage() {
           {result.top_priorities.map((key, i) => {
             const c = result.concerns[key];
             return (
-              <div key={key} className="tm-card tm-rise border-hot/30 bg-hot-soft p-5">
+              <div key={key} className="tm-card tm-rise p-5">
                 <div className="flex items-center justify-between">
                   <p className="font-bold">
                     <span className="mr-2 text-hot">{i + 1}.</span>

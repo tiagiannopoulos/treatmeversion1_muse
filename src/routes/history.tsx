@@ -63,7 +63,7 @@ function HistoryPage() {
         <p className="mt-3 text-ink-soft">
           your scans and rescan comparisons live in your account.
         </p>
-        <Link to="/signin" className="tm-btn-primary mt-6">
+        <Link to="/signin" className="tm-btn-hot mt-6">
           sign in
         </Link>
       </div>

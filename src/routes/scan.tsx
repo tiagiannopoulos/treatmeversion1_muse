@@ -92,7 +92,7 @@ function ScanPage() {
           type="checkbox"
           checked={consent}
           onChange={(e) => setConsent(e.target.checked)}
-          className="mt-1 h-5 w-5 accent-[#ff2e88]"
+          className="mt-1 h-5 w-5 accent-[#ff1f87]"
         />
         <span className="text-sm text-ink-soft">
           i consent to treatme analyzing my photos for a cosmetic skin report.
@@ -139,7 +139,7 @@ function ScanPage() {
           <p className="mt-1 text-ink-soft">{angle.hint}</p>
           {error && <p className="mt-2 text-sm font-medium text-hot-deep">{error}</p>}
           <div className="mt-4 flex gap-3">
-            <button className="tm-btn-primary flex-1" onClick={() => fileRef.current?.click()}>
+            <button className="tm-btn-hot flex-1" onClick={() => fileRef.current?.click()}>
               {photos[angle.key] ? "retake photo" : "take photo"}
             </button>
             <input

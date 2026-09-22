@@ -72,7 +72,7 @@ function SignInPage() {
             className="tm-input"
           />
           {error && <p className="text-sm font-medium text-hot-deep">{error}</p>}
-          <button type="submit" disabled={loading || !configured} className="tm-btn-primary w-full">
+          <button type="submit" disabled={loading || !configured} className="tm-btn-hot w-full">
             {loading ? "sending..." : "send me a sign in link"}
           </button>
         </form>

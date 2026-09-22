@@ -18,7 +18,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "treatme is yuka for your face. scan your skin, get a clear report, and a treatment plan built around you.",
+          "treatme. scan your skin, get a clear report, and a treatment plan built around you.",
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

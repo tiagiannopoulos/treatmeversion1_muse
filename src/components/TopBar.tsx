@@ -19,7 +19,7 @@ export function TopBar() {
             <TopLink key={n.to} to={n.to} label={n.label} />
           ))}
         </nav>
-        <Link to="/scan" className="tm-btn-primary !h-10 !px-5 text-sm">
+        <Link to="/scan" className="tm-btn-hot !h-10 !px-5 text-sm">
           scan my skin
         </Link>
       </div>
