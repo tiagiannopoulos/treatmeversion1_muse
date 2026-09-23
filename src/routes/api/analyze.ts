@@ -114,9 +114,11 @@ export const Route = createFileRoute("/api/analyze")({
           );
         }
 
-        // 2. auth: a valid session is required. no guest scans.
+        // 2. auth: required when supabase is configured. when it is not
+        // configured (demo mode), guest scans are allowed.
         const user = await getUserFromRequest(request);
-        if (!user) {
+        const dbConfigured = isDbConfigured();
+        if (!user && dbConfigured) {
           return Response.json(
             { error: "sign in required" },
             { status: 401 },
@@ -124,8 +126,7 @@ export const Route = createFileRoute("/api/analyze")({
         }
 
         // 3. daily scan limit (free tier: 5 scans a day).
-        const dbConfigured = isDbConfigured();
-        if (dbConfigured && !(await isPremium(user.id))) {
+        if (dbConfigured && user && !(await isPremium(user.id))) {
           const used = await countScansToday(user.id);
           if (used >= FREE_SCANS_PER_DAY) {
             return Response.json(

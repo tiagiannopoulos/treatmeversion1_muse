@@ -90,7 +90,8 @@ function AnalyzingPage() {
     let cancelled = false;
     (async () => {
       if (!isSupabaseConfigured()) {
-        if (!cancelled) setAuthState("blocked");
+        // demo mode: accounts are not wired up yet, so scans run as guest.
+        if (!cancelled) setAuthState("ready");
         return;
       }
       const sb = getSupabase();
@@ -147,12 +148,15 @@ function AnalyzingPage() {
     setError(null);
     try {
       const sb = getSupabase();
-      const { data } = await sb!.auth.getSession();
-      const token = data.session?.access_token ?? null;
-      if (!token) {
-        // session expired mid-flow: send them through sign in again.
-        navigate({ to: "/signin", search: { next: "/analyzing" } });
-        return;
+      let token: string | null = null;
+      if (sb) {
+        const { data } = await sb.auth.getSession();
+        token = data.session?.access_token ?? null;
+        if (!token) {
+          // session expired mid-flow: send them through sign in again.
+          navigate({ to: "/signin", search: { next: "/analyzing" } });
+          return;
+        }
       }
 
       const form = new FormData();
