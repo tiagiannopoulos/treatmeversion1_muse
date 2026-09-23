@@ -18,7 +18,9 @@ import {
 /**
  * POST /api/analyze
  * multipart form-data: front, left, right (image files), ageRange, concerns (json), email.
- * auth: Authorization: Bearer <supabase access token>.
+ * auth: Authorization: Bearer <supabase access token>. optional.
+ * signed-in users get scans saved to history; guests get the same analysis
+ * without an account (not saved).
  *
  * analysis engine: google gemini vision (GEMINI_API_KEY from env, server only).
  * never returns placeholder scores. when the analysis engine is unavailable
@@ -36,6 +38,20 @@ const MetaSchema = z.object({
   concerns: z.array(z.string()).max(16).optional().default([]),
   email: z.string().email().max(200),
 });
+
+// best-effort guest rate limit (no db): scans per ip per day.
+const guestCounts = new Map<string, { day: string; count: number }>();
+function checkGuestLimit(ip: string): boolean {
+  const day = new Date().toISOString().slice(0, 10);
+  const entry = guestCounts.get(ip);
+  if (!entry || entry.day !== day) {
+    guestCounts.set(ip, { day, count: 1 });
+    return true;
+  }
+  if (entry.count >= FREE_SCANS_PER_DAY) return false;
+  entry.count += 1;
+  return true;
+}
 
 const SYSTEM_PROMPT = `you are treatme's skin analysis engine, a medical aesthetics expert.
 you look at face photos and return a structured cosmetic skin assessment. this is cosmetic and educational, never a medical diagnosis.
@@ -113,24 +129,33 @@ export const Route = createFileRoute("/api/analyze")({
           );
         }
 
-        // 2. auth.
+        // 2. auth is optional. signed-in users get history saved;
+        // guests get the same analysis without an account.
         const user = await getUserFromRequest(request);
-        if (!user) {
-          return Response.json(
-            { error: "sign in required" },
-            { status: 401 },
-          );
-        }
-
-        // 3. daily scan limit (free tier).
         const dbConfigured = isDbConfigured();
-        if (dbConfigured && !(await isPremium(user.id))) {
+
+        // 3. daily scan limit (free tier: 5 scans a day).
+        if (user && dbConfigured && !(await isPremium(user.id))) {
           const used = await countScansToday(user.id);
           if (used >= FREE_SCANS_PER_DAY) {
             return Response.json(
               {
                 error: "daily limit reached",
                 detail: `you have used all ${FREE_SCANS_PER_DAY} free scans for today.`,
+                scans_remaining: 0,
+              },
+              { status: 429 },
+            );
+          }
+        } else if (!user) {
+          const ip =
+            request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+            "unknown";
+          if (!checkGuestLimit(ip)) {
+            return Response.json(
+              {
+                error: "daily limit reached",
+                detail: `you have used all ${FREE_SCANS_PER_DAY} free scans for today. come back tomorrow.`,
                 scans_remaining: 0,
               },
               { status: 429 },
@@ -270,9 +295,10 @@ export const Route = createFileRoute("/api/analyze")({
           );
         }
 
-        // 6. persist the scan when the database is configured.
+        // 6. persist the scan when the database is configured and the user is signed in.
+        // guest scans are analyzed but not saved.
         let scanId: string | null = null;
-        if (dbConfigured) {
+        if (dbConfigured && user) {
           const db = serviceClient();
           const scores = Object.fromEntries(
             CONCERN_KEYS.map((k) => [k, result.concerns[k as ConcernKey].score]),
