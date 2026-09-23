@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -35,15 +36,78 @@ const ScanContext = createContext<ScanState | null>(null);
 
 const EMPTY = { front: null, left: null, right: null };
 
+const DRAFT_KEY = "treatme.scanDraft.v1";
+
+interface ScanDraft {
+  photos: Record<PhotoAngle, string | null>;
+  frontLandmarks: Landmark[] | null;
+  ageRange: string | null;
+  concerns: ConcernKey[];
+  consent: boolean;
+}
+
+/** load a saved draft (photos survive the sign-in redirect). null when none. */
+function loadDraft(): ScanDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as Partial<ScanDraft>;
+    return {
+      photos: {
+        front: d.photos?.front ?? null,
+        left: d.photos?.left ?? null,
+        right: d.photos?.right ?? null,
+      },
+      frontLandmarks: d.frontLandmarks ?? null,
+      ageRange: d.ageRange ?? null,
+      concerns: Array.isArray(d.concerns) ? (d.concerns as ConcernKey[]) : [],
+      consent: d.consent === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** save the draft. best effort — quota errors are swallowed. */
+function saveDraft(d: ScanDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch {
+    // storage full or unavailable: the flow still works, just without restore.
+  }
+}
+
+export function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 export function ScanProvider({ children }: { children: ReactNode }) {
-  const [photos, setPhotos] = useState<Record<PhotoAngle, string | null>>({ ...EMPTY });
-  const [frontLandmarks, setFrontLandmarksState] = useState<Landmark[] | null>(null);
-  const [ageRange, setAgeRange] = useState<string | null>(null);
-  const [concerns, setConcerns] = useState<ConcernKey[]>([]);
+  const [photos, setPhotos] = useState<Record<PhotoAngle, string | null>>(() => {
+    const d = loadDraft();
+    return d ? d.photos : { ...EMPTY };
+  });
+  const [frontLandmarks, setFrontLandmarksState] = useState<Landmark[] | null>(() => {
+    const d = loadDraft();
+    return d ? d.frontLandmarks : null;
+  });
+  const [ageRange, setAgeRange] = useState<string | null>(() => loadDraft()?.ageRange ?? null);
+  const [concerns, setConcerns] = useState<ConcernKey[]>(() => loadDraft()?.concerns ?? []);
   const [email, setEmail] = useState("");
-  const [consent, setConsent] = useState(false);
+  const [consent, setConsent] = useState(() => loadDraft()?.consent ?? false);
   const [result, setResultState] = useState<AnalysisResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
+
+  // persist the draft so a sign-in redirect never loses the scan in progress.
+  useEffect(() => {
+    saveDraft({ photos, frontLandmarks, ageRange, concerns, consent });
+  }, [photos, frontLandmarks, ageRange, concerns, consent]);
 
   const setPhoto = useCallback(
     (angle: PhotoAngle, dataUrl: string | null) => {
@@ -68,6 +132,8 @@ export function ScanProvider({ children }: { children: ReactNode }) {
   const setResult = useCallback((r: AnalysisResult | null, id: string | null) => {
     setResultState(r);
     setScanId(id);
+    // the scan is done — the in-progress draft is no longer needed.
+    if (r) clearDraft();
   }, []);
 
   const reset = useCallback(() => {
@@ -79,6 +145,7 @@ export function ScanProvider({ children }: { children: ReactNode }) {
     setConsent(false);
     setResultState(null);
     setScanId(null);
+    clearDraft();
   }, []);
 
   const value = useMemo(

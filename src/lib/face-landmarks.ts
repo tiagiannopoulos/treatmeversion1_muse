@@ -85,8 +85,7 @@ export async function detectLandmarksFromDataUrl(
 /**
  * mean luminance (0..255) of the center region of a video frame.
  * used for the "find better light" alignment hint.
- */
-export function frameBrightness(video: HTMLVideoElement): number | null {
+ */export function frameBrightness(video: HTMLVideoElement): number | null {
   try {
     const w = video.videoWidth;
     const h = video.videoHeight;
@@ -155,4 +154,62 @@ export function checkAlignment(
     return { ok: false, hint: "center your face" };
   }
   return { ok: true, hint: "ok" };
+}
+
+export interface CoverMap {
+  /** displayed css px covered per normalized unit */
+  scaleX: number;
+  scaleY: number;
+  /** crop offset of the displayed region's top-left, in css px (negative when cropped) */
+  offsetX: number;
+  offsetY: number;
+  /** displayed element size, css px */
+  ew: number;
+  eh: number;
+  /** intrinsic video frame size */
+  vw: number;
+  vh: number;
+  /** the cover scale factor */
+  s: number;
+}
+
+/**
+ * object-fit: cover mapping.
+ *
+ * the video element crops its frame to fill the element box. landmarks are
+ * normalized to the FULL frame (videoWidth x videoHeight), so drawing them
+ * straight onto the element box detaches the mesh whenever the frame aspect
+ * differs from the element aspect (typical on iphone front cameras).
+ * this returns the transform from normalized frame coords to displayed css px.
+ */
+export function coverMap(
+  vw: number,
+  vh: number,
+  ew: number,
+  eh: number,
+): CoverMap | null {
+  if (!vw || !vh || !ew || !eh) return null;
+  const s = Math.max(ew / vw, eh / vh);
+  return {
+    scaleX: vw * s,
+    scaleY: vh * s,
+    offsetX: (ew - vw * s) / 2,
+    offsetY: (eh - vh * s) / 2,
+    ew,
+    eh,
+    vw,
+    vh,
+    s,
+  };
+}
+
+/** map one normalized landmark through the cover transform (+ optional mirror). */
+export function mapCoverPoint(
+  m: CoverMap,
+  x: number,
+  y: number,
+  mirror: boolean,
+): { x: number; y: number } {
+  const lx = mirror ? 1 - x : x;
+  return { x: m.offsetX + lx * m.scaleX, y: m.offsetY + y * m.scaleY };
 }

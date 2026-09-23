@@ -3,11 +3,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useScan, type PhotoAngle } from "@/lib/scan-store";
 import {
   checkAlignment,
+  coverMap,
   detectLandmarks,
   detectLandmarksFromDataUrl,
   frameBrightness,
+  mapCoverPoint,
   tesselation,
   type Alignment,
+  type CoverMap,
   type Landmark,
 } from "@/lib/face-landmarks";
 
@@ -96,26 +99,63 @@ function AlignmentPill({ alignment }: { alignment: Alignment | null }) {
   );
 }
 
+function clearMesh(canvas: HTMLCanvasElement) {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/**
+ * white wireframe mesh on the live preview.
+ * landmarks are normalized to the FULL video frame, but the video element
+ * uses object-fit: cover, so we map through the cover transform — drawing
+ * straight to canvas pixels detaches the mesh on phones where the frame
+ * aspect differs from the element aspect.
+ * never draws when the mapping can't be trusted; callers clear instead.
+ */
 function drawLiveMesh(
   canvas: HTMLCanvasElement,
-  landmarks: Landmark[] | null,
+  landmarks: Landmark[],
+  map: CoverMap,
   mirror: boolean,
+  debug: boolean,
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const { width, height } = canvas;
-  ctx.clearRect(0, 0, width, height);
-  if (!landmarks || landmarks.length < 100) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, map.ew, map.eh);
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
-  ctx.lineWidth = Math.max(1, width / 420);
+  ctx.lineWidth = Math.max(1, map.ew / 420);
   ctx.beginPath();
   for (const c of tesselation()) {
     const a = landmarks[c.start];
     const b = landmarks[c.end];
-    ctx.moveTo((mirror ? 1 - a.x : a.x) * width, a.y * height);
-    ctx.lineTo((mirror ? 1 - b.x : b.x) * width, b.y * height);
+    if (!a || !b) continue;
+    const pa = mapCoverPoint(map, a.x, a.y, mirror);
+    const pb = mapCoverPoint(map, b.x, b.y, mirror);
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
   }
   ctx.stroke();
+  if (debug) {
+    const lines = [
+      `vid ${map.vw}x${map.vh}`,
+      `el ${Math.round(map.ew)}x${Math.round(map.eh)} css`,
+      `s ${map.s.toFixed(3)} crop ${Math.round(map.offsetX)},${Math.round(map.offsetY)}`,
+      `lm ${landmarks.length} mirror ${mirror ? "y" : "n"}`,
+    ];
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.font = "11px monospace";
+    const w = 190;
+    const h = lines.length * 15 + 12;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(6 * dpr, 6 * dpr, w, h);
+    ctx.fillStyle = "#fff";
+    lines.forEach((t, i) => ctx.fillText(t, 6 * dpr + 8, 6 * dpr + 20 + i * 15));
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 type CamMode = "starting" | "live" | "denied" | "preview";
@@ -220,24 +260,42 @@ function AngleCapture({
   // live face-mesh + alignment loop.
   useEffect(() => {
     if (mode !== "live") return;
+    const debug =
+      new URLSearchParams(window.location.search).get("debug") === "mesh";
+    // consecutive detection failures before the mesh is hidden. a stale mesh
+    // is worse than no mesh: never show one that isn't tracking.
+    let failures = 0;
     const id = setInterval(async () => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0)
         return;
-      const w = video.clientWidth;
-      const h = video.clientHeight;
-      if (w > 0 && (canvas.width !== Math.round(w) || canvas.height !== Math.round(h))) {
-        canvas.width = Math.round(w);
-        canvas.height = Math.round(h);
+      const cssW = video.clientWidth;
+      const cssH = video.clientHeight;
+      if (cssW === 0 || cssH === 0) return;
+      // retina bitmap so the mesh stays crisp; all drawing in css px.
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const bw = Math.round(cssW * dpr);
+      const bh = Math.round(cssH * dpr);
+      if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw;
+        canvas.height = bh;
       }
+      const map = coverMap(video.videoWidth, video.videoHeight, cssW, cssH);
       try {
         const pts = await detectLandmarks(video);
         const bright = frameBrightness(video);
         setAlignment(checkAlignment(pts, bright));
-        drawLiveMesh(canvas, pts, true);
+        if (!pts || pts.length < 100 || !map) {
+          failures += 1;
+          if (failures >= 2) clearMesh(canvas);
+          return;
+        }
+        failures = 0;
+        drawLiveMesh(canvas, pts, map, true, debug);
       } catch {
-        /* keep the last frame on transient errors */
+        failures += 1;
+        if (failures >= 2) clearMesh(canvas);
       }
     }, 320);
     return () => clearInterval(id);
@@ -445,8 +503,7 @@ function ScanPage() {
 
   return (
     <div className="mx-auto max-w-xl py-6">
-      <p className="tm-eyebrow">skin scan</p>
-      <h1 className="tm-display mt-3 text-4xl">three quick photos.</h1>
+      <h1 className="tm-display text-4xl">three quick photos.</h1>
 
       <div className="tm-card mt-6 bg-mist p-5">
         <p className="font-semibold">for the best read:</p>

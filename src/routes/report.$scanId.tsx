@@ -99,8 +99,7 @@ function ReportPage() {
   if (missing) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <p className="tm-eyebrow">report</p>
-        <h1 className="tm-display mt-3 text-4xl">no report here.</h1>
+        <h1 className="tm-display text-4xl">no report here.</h1>
         <p className="mt-3 text-ink-soft">
           this report is not available. run a fresh scan to get one.
         </p>
@@ -131,8 +130,7 @@ function ReportPage() {
 
   return (
     <div className="mx-auto max-w-2xl py-6">
-      <p className="tm-eyebrow">your skin report</p>
-      <h1 className="tm-display mt-3 text-4xl">here is what we see.</h1>
+      <h1 className="tm-display text-4xl">here is what we see.</h1>
       {loaded.createdAt && (
         <p className="mt-2 text-sm text-ink-mute">
           scanned {new Date(loaded.createdAt).toLocaleDateString()}
@@ -142,8 +140,7 @@ function ReportPage() {
       <div className="tm-card mt-6 p-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="tm-eyebrow">overall score</p>
-            <p className="tm-display mt-2 text-6xl tabular-nums">{overall}</p>
+            <p className="tm-display text-6xl tabular-nums">{overall}</p>
             <p className="mt-1 text-sm text-ink-mute">
               average across 16 markers
             </p>
@@ -159,8 +156,7 @@ function ReportPage() {
       </div>
 
       <div className="tm-card mt-4 p-6">
-        <p className="tm-eyebrow">summary</p>
-        <p className="mt-2 text-lg leading-relaxed">{result.summary}</p>
+        <p className="text-lg leading-relaxed">{result.summary}</p>
         {result.fitzpatrick && (
           <p className="mt-3 text-sm text-ink-mute">
             fitzpatrick type {result.fitzpatrick}
@@ -205,7 +201,7 @@ function ReportPage() {
         <h2 className="tm-display text-3xl">the full picture</h2>
         {CONCERN_GROUPS.map((g) => (
           <div key={g.key} className="tm-card mt-4 p-6">
-            <p className="tm-eyebrow">{g.label}</p>
+            <p className="text-sm font-semibold text-ink">{g.label}</p>
             <div className="mt-2 divide-y divide-line">
               {g.concerns.map((c) => {
                 const key = c.key as ConcernKey;

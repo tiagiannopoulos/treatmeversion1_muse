@@ -31,8 +31,7 @@ export function HomePage() {
   return (
     <div>
       <section className="py-10 sm:py-16">
-        <p className="tm-eyebrow">skin analysis</p>
-        <h1 className="tm-display mt-4 max-w-2xl text-5xl sm:text-7xl">
+        <h1 className="tm-display max-w-2xl text-5xl sm:text-7xl">
           understand your skin from one selfie.
         </h1>
         <p className="mt-5 max-w-xl text-lg text-ink-soft">
@@ -48,7 +47,7 @@ export function HomePage() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-ink-mute">
-          free. 5 scans a day. no account needed to look around.
+          free. 5 scans a day. sign in to start your first scan.
         </p>
       </section>
 
@@ -70,8 +69,7 @@ export function HomePage() {
       <section className="my-8 border-y border-line py-10">
         <div className="grid gap-10 sm:grid-cols-2">
           <div>
-            <p className="tm-eyebrow">why treatme</p>
-            <h2 className="tm-display mt-3 text-3xl sm:text-4xl">
+            <h2 className="tm-display text-3xl sm:text-4xl">
               every consultation ends with someone selling you something. this
               one does not.
             </h2>
@@ -82,8 +80,7 @@ export function HomePage() {
             </p>
           </div>
           <div>
-            <p className="tm-eyebrow">what you get</p>
-            <ul className="mt-3 divide-y divide-line">
+            <ul className="divide-y divide-line">
               {[
                 "16-point skin report in plain english",
                 "face map showing exactly where each concern lives",

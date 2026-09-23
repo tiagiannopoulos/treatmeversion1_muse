@@ -46,16 +46,14 @@ function TreatmentsPage() {
 
   return (
     <div className="mx-auto max-w-3xl py-6">
-      <p className="tm-eyebrow">treatment plan</p>
-      <h1 className="tm-display mt-3 text-4xl">matched to your skin.</h1>
+      <h1 className="tm-display text-4xl">matched to your skin.</h1>
       <p className="mt-3 text-ink-soft">
         every suggestion below is tied to your scan. tune the filters and the
         list rebuilds around you.
       </p>
 
       <div className="tm-card mt-6 p-6">
-        <p className="tm-eyebrow">your focus concerns</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2">
           {CONCERN_KEYS.map((k) => (
             <button
               key={k}
@@ -70,7 +68,7 @@ function TreatmentsPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="tm-eyebrow">budget</span>
+            <span className="text-sm font-semibold text-ink">budget</span>
             <select
               value={budget}
               onChange={(e) => setBudget(e.target.value as BudgetTier | "any")}
@@ -84,7 +82,7 @@ function TreatmentsPage() {
             </select>
           </label>
           <label className="block">
-            <span className="tm-eyebrow">downtime</span>
+            <span className="text-sm font-semibold text-ink">downtime</span>
             <select
               value={downtime}
               onChange={(e) => setDowntime(e.target.value as Downtime | "any")}
@@ -113,7 +111,7 @@ function TreatmentsPage() {
       </div>
 
       <div className="mt-6 space-y-4">
-        <p className="tm-eyebrow">
+        <p className="text-sm font-medium text-ink-mute">
           {matches.length} {matches.length === 1 ? "treatment" : "treatments"} match your filters
         </p>
         {matches.length === 0 && (
@@ -128,7 +126,7 @@ function TreatmentsPage() {
           <article key={t.slug} className="tm-card tm-rise p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="tm-eyebrow">{t.category}</p>
+                <p className="text-xs font-medium text-ink-mute">{t.category}</p>
                 <h3 className="tm-display mt-1 text-2xl">{t.name}</h3>
               </div>
               <p className="text-lg font-bold">

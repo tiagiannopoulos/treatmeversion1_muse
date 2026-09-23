@@ -51,8 +51,7 @@ function NotFound() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center text-center">
       <div className="max-w-sm">
-        <p className="tm-eyebrow">404</p>
-        <h1 className="tm-display mt-3 text-4xl">page not found.</h1>
+        <h1 className="tm-display text-4xl">page not found.</h1>
         <p className="mt-3 text-ink-mute">that route does not exist.</p>
         <div className="mt-6">
           <Link to="/" className="tm-btn-primary">

@@ -83,6 +83,33 @@ function AnalyzingPage() {
   const [reportDone, setReportDone] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // sign in is required before analysis can run.
+  const [authState, setAuthState] = useState<"checking" | "ready" | "blocked">("checking");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isSupabaseConfigured()) {
+        if (!cancelled) setAuthState("blocked");
+        return;
+      }
+      const sb = getSupabase();
+      const { data } = await sb!.auth.getSession();
+      if (cancelled) return;
+      if (!data.session) {
+        navigate({ to: "/signin", search: { next: "/analyzing" }, replace: true });
+        return;
+      }
+      // prefill the report email from the signed-in account.
+      setEmail(data.session.user.email ?? "");
+      setAuthState("ready");
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // run once on mount: the gate decides before anything else renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const t = setInterval(
@@ -119,16 +146,13 @@ function AnalyzingPage() {
     setSending(true);
     setError(null);
     try {
-      let token: string | null = null;
-      if (isSupabaseConfigured()) {
-        const sb = getSupabase();
-        const { data } = await sb!.auth.getSession();
-        token = data.session?.access_token ?? null;
-        if (!token) {
-          setError("please sign in first so your report can be saved to your account.");
-          setSending(false);
-          return;
-        }
+      const sb = getSupabase();
+      const { data } = await sb!.auth.getSession();
+      const token = data.session?.access_token ?? null;
+      if (!token) {
+        // session expired mid-flow: send them through sign in again.
+        navigate({ to: "/signin", search: { next: "/analyzing" } });
+        return;
       }
 
       const form = new FormData();
@@ -151,7 +175,9 @@ function AnalyzingPage() {
       } else if (res.status === 429) {
         setError("you have used all 5 free scans for today. come back tomorrow.");
       } else if (res.status === 401) {
-        setError("please sign in first so your report can be saved to your account.");
+        // session did not survive — route through sign in and come back.
+        navigate({ to: "/signin", search: { next: "/analyzing" } });
+        return;
       } else if (!res.ok) {
         setError(body.detail || body.error || "the scan could not be completed. please try again.");
       } else {
@@ -165,11 +191,33 @@ function AnalyzingPage() {
     setSending(false);
   }
 
+  if (authState === "checking") {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <p className="text-ink-soft">getting things ready…</p>
+      </div>
+    );
+  }
+
+  if (authState === "blocked") {
+    return (
+      <div className="mx-auto max-w-md py-16 text-center">
+        <h1 className="tm-display text-4xl">sign in required.</h1>
+        <p className="mt-3 text-ink-soft">
+          accounts are not set up yet, so scans cannot run. add your supabase
+          keys to continue.
+        </p>
+        <button className="tm-btn-hot mt-6" onClick={() => navigate({ to: "/" })}>
+          back home
+        </button>
+      </div>
+    );
+  }
+
   if (!hasPhotos) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <p className="tm-eyebrow">analyzing</p>
-        <h1 className="tm-display mt-3 text-4xl">no photos yet.</h1>
+        <h1 className="tm-display text-4xl">no photos yet.</h1>
         <p className="mt-3 text-ink-soft">
           the analysis needs your three scan photos first.
         </p>
@@ -182,8 +230,7 @@ function AnalyzingPage() {
 
   return (
     <div className="mx-auto max-w-xl py-6">
-      <p className="tm-eyebrow">analyzing</p>
-      <h1 className="tm-display mt-3 text-4xl">reading your skin.</h1>
+      <h1 className="tm-display text-4xl">reading your skin.</h1>
 
       <div className="tm-card mt-6 overflow-hidden">
         <div className="relative bg-ink">

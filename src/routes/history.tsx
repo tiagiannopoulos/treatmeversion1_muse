@@ -58,8 +58,7 @@ function HistoryPage() {
   if (!isSupabaseConfigured() || signedIn === false) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <p className="tm-eyebrow">history</p>
-        <h1 className="tm-display mt-3 text-4xl">sign in to see your history.</h1>
+        <h1 className="tm-display text-4xl">sign in to see your history.</h1>
         <p className="mt-3 text-ink-soft">
           your scans and rescan comparisons live in your account.
         </p>
@@ -82,8 +81,7 @@ function HistoryPage() {
   if (scans.length === 0) {
     return (
       <div className="mx-auto max-w-md py-16 text-center">
-        <p className="tm-eyebrow">history</p>
-        <h1 className="tm-display mt-3 text-4xl">no scans yet.</h1>
+        <h1 className="tm-display text-4xl">no scans yet.</h1>
         <p className="mt-3 text-ink-soft">your first scan starts your timeline.</p>
         <Link to="/scan" className="tm-btn-hot mt-6">
           scan my skin
@@ -101,8 +99,7 @@ function HistoryPage() {
 
   return (
     <div className="mx-auto max-w-2xl py-6">
-      <p className="tm-eyebrow">history</p>
-      <h1 className="tm-display mt-3 text-4xl">watch your skin change.</h1>
+      <h1 className="tm-display text-4xl">watch your skin change.</h1>
 
       {rescanDue ? (
         <div className="tm-card mt-6 border-hot/40 bg-hot-soft p-6">

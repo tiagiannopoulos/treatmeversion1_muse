@@ -46,14 +46,6 @@ body {
   text-transform: lowercase;
 }
 
-.tm-eyebrow {
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--color-ink-mute);
-  font-weight: 600;
-}
-
 .tm-display {
   font-weight: 700;
   letter-spacing: -0.02em;
